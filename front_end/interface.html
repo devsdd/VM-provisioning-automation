@@ -1,0 +1,109 @@
+<html>
+<head>
+	<title>VPS Request Interface</title>
+</head>
+
+<body>
+	<h2 style="margin-top: 1em; color: brown;">Virtual Private Server (VPS) Request Interface</h2>
+	<!-- #BEGINZONE selection -->
+	<p>Please select whether you would like to request for a new VPS or start up an existing instance of yours.
+	<form method="POST" action="/cgi-bin/vps.cgi" style="border: solid blue; border-style: ridge; padding: 0.5em;">
+		<div style="margin-left: 1em;">
+	<!-- the CGI has to be renamed to whatever is the final name -->
+			<input type="radio" name="choice" value="New"> Request for a New VPS
+			<br>
+			<input type="radio" name="choice" value="Existing"> Startup an existing one
+			<br>
+			<input type="submit" name="action" value="Select">
+			<br>
+		</div>
+	</form>
+	<!-- #ENDZONE selection -->
+
+	<!-- #BEGINZONE vps-list -->
+
+	<!-- #BEGINZONE no-vps -->
+	<p>Oops! You have no existing VPS' to choose from! Please go back and create a new one if you wish.<p>
+	<!-- #ENDZONE no-vps -->
+
+	<!-- #BEGINZONE existing-vps -->
+	<!-- #ENDZONE existing-vps -->
+
+	<!-- #ENDZONE vps-list -->
+
+	<!-- #BEGINZONE form -->
+	<h4 style="color:green"> Welcome, ##user##!</h4>
+	<p>Select the Operating System desired and type in the hostname to be given to the VPS. Please specify the hostname in a proper format
+	</p>
+	<p><b>NOTES:</b>
+	<ul>
+		<li>&nbsp;As per DNS specifications hostnames cannot contain underscores.</li>
+		<li>&nbsp;On Windows Servers, the Hostname cannot be longer than <span style="color: red; font-weight: bold;">15</span> characters. If it is, then the functionality of IIS to list the IP's in a drop down is hampered. This also creates issues for the WHB App to work.</li>
+		<li>&nbsp;Windows hostnames must be all <span style="color: red; font-weight: bold;">caps</span>, separated by <span style="color: red; font-weight: bold;">hyphens only</span> (no dots, underscores etc.).</li>
+	</ul>
+	<form method="POST" action="vps.cgi" style="border: solid blue; border-style: ridge; padding: 0.5em;">
+	<!-- <form method="POST" action="/" style="border: solid blue; border-style: ridge; padding: 0.5em;"> -->
+	<h4 style="margin-left: 1em;">Select the Operating System desired</h4>
+		<div style="margin-left: 1em; color: blue;">
+	<!-- the CGI has to be renamed to whatever is the final name -->
+			<input type="radio" name="OS" value="Linux"> GNU/Linux (CentOS 5 64-bit)
+			<br>
+			<input type="radio" name="OS" value="Windows"> Windows 2003 64-bit
+			<br>
+			<br>
+		</div>
+			<span style="margin-left: 1em;">Hostname : &nbsp;</span>
+			<input type="text" name="hostname">
+			<br>
+			<input type="submit" name="action" value="Request" style="margin-top: 2em; margin-left: 5em;">
+	</form>
+	<!-- #ENDZONE form -->
+
+	<!-- If the "Request" button is clicked without making a valid choice of OS, display this error message -->
+	<!-- #BEGINZONE invalid_OS_choice -->
+	<br>
+	<h3 style="color: red">Error</h3>
+	<p>You did not select the Operating System! Please click the "Back" button to back and make a selection of OS before continuing further.
+	</p>
+	<!-- #ENDZONE invalid_OS_choice -->
+
+	<!-- #BEGINZONE no_hostname -->
+	<h3 style="color: red">Error</h3>
+	<p>You did not specify a hostname! Please click the "Back" button to back and specify an appropriate hostname according to the guidelines before continuing further.
+	</p>
+	<!-- #ENDZONE no_hostname -->
+
+	<!-- #BEGINZONE bad_hostname -->
+	<h3 style="color: red">Error</h3>
+	<p>You did not specify a valid hostname! Please click the "Back" button to back and specify an appropriate hostname before continuing further. Remember, a hostname cannot contain any spaces. If you want a Windows VPS, please make sure the hostname is no longer than 15 characters and contains no characters other than alphanumeric ones and hyphens (<span style="color: red">not even dots!</span>).
+	</p>
+	<!-- #ENDZONE bad_hostname -->
+
+	<!-- #BEGINZONE db_read_failed -->
+	<h3 style="color: red">Error</h3>
+	<p>Failed to get list of existing machines. Although you may be placing a new request, it is necessary to read the existing list in order to decide how to create your VPS.</p>
+	<p>The error encountered was: <b>"##db_error##"</b>
+	<p>Please contact the server admin with a description of what action you were trying along with this error message.
+	</p>
+	<!-- #ENDZONE db_read_failed -->
+
+	<!-- #BEGINZONE file_create_error -->
+	<h3 style="color: red">Error</h3>
+	<p> Sorry, there was an error registering your request. The error message was 
+	<span style="color: red; font-weight: bold;">##error_msg##</span>. Please contact the administrator with this error message.
+	<!-- #ENDZONE file_create_error -->
+
+	<!-- #BEGINZONE write_error -->
+	<h3 style="color: red">Error</h3>
+	<p> Sorry, there was an error saving your hostname. Due to this, your request cannot be completed. The error message was <span style="color: red; font-weight: bold;">##error_msg##</span>. Please contact the administrator with this error message.
+	<!-- #ENDZONE write_error -->
+
+	<!-- #BEGINZONE success -->
+	<p style="padding-top: 1em;">Thank You <span style="color: blue; font-weight: bold;">##user##</span>! Your request for a <span style="color: red; font-weight: bold">##OS##</span> VPS with hostname <span style="color: red; font-weight: bold">##hostname##</span> has been registered successfully. Since creation of a virtual instance takes time, you will not be able to get immediate access. You will, however, be informed by e-mail with all the details of the VPS as soon as it's created.</p>
+	<br>
+	<!-- <a href="javascript:CloseWindow();">Logout</a>	-->
+	<!-- #ENDZONE success -->
+
+</body>
+
+</html>

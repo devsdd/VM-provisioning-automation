@@ -1,0 +1,88 @@
+#!/bin/bash
+# v2.1
+# Changelog 2.0a:
+# 1. Linux images are now going to be paravirtualized only
+# 2. This allows us to pass command line arguments to the kernel. Parameters like IP, Netmast, gateway and hostname defined in the domU config file get passed to the kernel command line this way.
+# 3. Hence, starting to do away with the ugly hacks of "guessing" the appropriate IP from the main DB
+#
+# ChangeLog 2.1:
+# Bugfix: mysql udpate query was failing because of an incorrect "where" clause - fixed it.
+
+# if there's no "ip=" field in the kernel command-line then we can assume this is the base image and just abort without doing anything
+desired_hostname=`awk '/ip/ {print $1}' /proc/cmdline | cut -d ':' -f 5`
+desired_IP=`awk '/ip/ {print $1}' /proc/cmdline | cut -d ':' -f 1 | cut -d '=' -f 2`
+actual_hostname=`hostname`
+IP=$(ifconfig eth0 | awk '/inet addr/ {print $2}' | cut -d':' -f2)
+MYSQL="mysql --host=<INSERT DB SERVER ADDRESS HERE> --user=root --database=VPS --execute="
+server_id=`cat /etc/vps_host_id`
+
+if [ -z "$desired_hostname" ] ; then
+	exit 0
+elif [ "$actual_hostname" = "$desired_hostname" -a "$IP" = "$desired_IP" ] ; then
+	# already configured
+	$MYSQL"UPDATE guests SET state = 'On', hostname = '$(hostname)', ip_address = '$IP' WHERE vm_name = '$(hostname)';" || failed=1
+                                if [ "1" = "$failed" ] ; then
+                                         email "Failed to update DB for instance $hostname from within VPS" "<INSERT YOUR EMAIL ADDRESS HERE>"
+                                fi
+	exit 0
+fi
+
+function email()
+{
+# DSN (delivery status notification) setting modification is possible in postfix > 2.3. This MAY NOT BE PRESENT in all MTAs
+        cat << EOF | sendmail -N never $1
+From: do_not_reply@$(hostname)
+Subject: $2
+To: $1
+
+$3
+
+- regards,
+VPS Manager.
+EOF
+}
+
+hostname $desired_hostname
+sed -i "s/HOSTNAME=.*/HOSTNAME=$desired_hostname/" /etc/sysconfig/network
+/usr/local/bin/set_IP.sh || failed=1
+
+# if the IP didn't get changed properly, then revert
+if [ "$failed" ] ; then
+	cp /etc/sysconfig/network-scripts/ifcfg-eth0 /root/failed-eth0-config
+	cp /root/DHCP /etc/sysconfig/network-scripts/ifcfg-eth0
+fi
+
+service network restart
+IP=$(ifconfig eth0 | awk '/inet addr/ {print $2}' | cut -d':' -f2)
+
+if [ "$failed" ] ; then
+ 		email "<INSERT YOUR EMAIL ADDRESS HERE>" "VPS settings error on $IP/`hostname`" "	Failed to properly set IP/hostname or both for the VPS currently assigned an IP of $IP and hostname $(hostname). Please investigate and take appropriate corrective action."
+ 		exit 1
+fi
+
+# else it worked properly, so continue
+# Add an appropriate entry in the hosts file
+grep $desired_hostname /etc/hosts || echo "$IP	`hostname`	`hostname`<INSERT YOUR DOMAIN NAME HERE>" >> /etc/hosts
+
+# update the main VPS DB with the actual hostname and *current* IP address on the VM
+$MYSQL"UPDATE guests SET hostname = '$(hostname)', ip_address='$IP', state = 'On' WHERE vm_name = '$desired_hostname' AND server_id = \"$server_id\";" || failed=1
+
+if [ "$failed" ] ; then
+	 email "<INSERT YOUR EMAIL ADDRESS HERE>" "DB update failed for VPS `hostname`" "Failed to update DB with settings of VPS `hostname` currently assigned an IP of $IP. Please investigate".
+	 exit 1
+fi
+
+# else send a success mail
+user=`$MYSQL"SELECT owner FROM guests WHERE hostname = '$desired_hostname' AND ip_address = '$IP' AND vm_name = '$desired_hostname' AND server_id = \"$server_id\";" -s -s`
+
+email "$user@<INSERT YOUR DOMAIN NAME HERE>" "Your GNU/Linux VPS is ready" "Dear $user,
+
+The VPS you requested is ready. The details are as follows:
+
+Host Name:	$(hostname) 
+IP Address:	$IP
+Root Password:	<PASSWORD>
+
+* The password is the default password. Please change it immediately on first login. 
+* Please DO NOT change the hostname under any circumstances, as this is the only certain way we can keep track of your VPS without admin intervention. This may also cause your configuration to get messed up and your VPS becoming unavailable.
+"
